@@ -2,13 +2,13 @@
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)    
 ![demo](figures/demo.gif)   
 This repository will implement the classic deep reinforcement learning algorithms. The aim of this repository is to provide clear code for people to learn the deep reinforcement learning algorithm. In the future, more algorithms will be added and the existing codes will also be maintained. 
-- [x] [Deep Q-Learning Network(DQN)]()
-- [x] [Double DQN(DDQN)]()
-- [x] [Deep Deterministic Policy Gradient(DDPG)]()
+- [x] [Deep Q-Learning Network(DQN)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/01-deep-q-network)
+- [x] [Double DQN(DDQN)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/02-double-dqn)
+- [x] [Deep Deterministic Policy Gradient(DDPG)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/03-deep-deterministic-policy-gradient)
 - [ ] Dueling Network Architecture
-- [x] [Advantage Actor-Critic(A2C)]()
-- [x] [Trust Region Policy Optimization(TRPO)]()
-- [x] [Proximal Policy Optimization(PPO)]()
+- [x] [Advantage Actor-Critic(A2C)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/05-advantage-actor-critic)
+- [x] [Trust Region Policy Optimization(TRPO)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/06-trust-region-policy-optimization)
+- [x] [Proximal Policy Optimization(PPO)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/07-proximal-policy-optimization)
 - [ ] Actor Critic using Kronecker-Factored Trust Region(ACKTR)
 
 ## Requirements
@@ -37,12 +37,12 @@ pip install -e .
 ## Instructions
 1. select the suitable algorithms
 ```bash
-cd <the rl algorithm>
+cd <the-rl-algorithm>
 ```
 2. all of the parameters are defined in the `arguments.py`, you can train your model with suitable hyper-parameters.
 3. train the networks
 ```bash
-python train_network.py --cuda (only TRPO not support GPU) --<other flags>
+python train_network.py --cuda (only TRPO not support GPU) --<other-flags>
 
 ```
 4. test the networks
@@ -50,8 +50,8 @@ python train_network.py --cuda (only TRPO not support GPU) --<other flags>
 python demo.py
 
 ```
-5. download the pre-train models  
-please download them from the [Google Driver](https://drive.google.com/open?id=1ZXqRKwGI7purOm0CJtIVFXOZnmxqvA0p), then put the `saved_models` under the corresponding algorithm's folder.
+5. download the **pre-trained** models  
+Please download them from the [Google Driver](https://drive.google.com/open?id=1ZXqRKwGI7purOm0CJtIVFXOZnmxqvA0p), then put the `saved_models` under the corresponding algorithm's folder.
 
 ## Acknowledgement:
 - [Ilya Kostrikov's GitHub](https://github.com/ikostrikov)
