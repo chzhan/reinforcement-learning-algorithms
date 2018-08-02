@@ -19,14 +19,14 @@ This repository will implement the classic deep reinforcement learning algorithm
 - pytorch-0.4.0
 - [openai-baselines](https://github.com/openai/baselines)
 ## Installation
-step-1: install the pytorch
+1. install the pytorch
 ```bash
 plase go to official webisite to install it: https://pytorch.org/
 
 Recommend use Anaconda Virtual Environment to manage your packages
 
 ```
-step-2: install openai-baselines
+2. install openai-baselines
 ```bash
 # clone the openai baselines
 git clone https://github.com/openai/baselines.git
