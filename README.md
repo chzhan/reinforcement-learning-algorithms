@@ -42,12 +42,12 @@ cd <the-rl-algorithm>
 2. all of the parameters are defined in the `arguments.py`, you can train your model with suitable hyper-parameters.
 3. train the networks
 ```bash
-python train_network.py --cuda (only TRPO not support GPU) --<other-flags>
+python train_network.py --env-name=<env-name> --cuda (only TRPO not support GPU) --<other-flags>
 
 ```
 4. test the networks
 ```bash
-python demo.py
+python demo.py --env-name=<env-name>
 
 ```
 5. download the **pre-trained** models  
