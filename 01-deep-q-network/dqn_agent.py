@@ -1,7 +1,6 @@
 import numpy as np 
 import models
 import torch
-from torch.autograd import Variable
 import cv2
 import random
 import gym_ple
