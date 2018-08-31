@@ -16,7 +16,7 @@ pip install -e .
 ## Instruction to run the code
 ### Train the Network:
 ```bash
-python train --env-name 'BreakoutNoFrameskip-v4' --cuda (if you have a GPU, you can add this flag)
+python train_network.py --env-name 'BreakoutNoFrameskip-v4' --cuda (if you have a GPU, you can add this flag)
 
 ```
 ### Test the Network:
