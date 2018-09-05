@@ -26,11 +26,12 @@ plase go to official webisite to install it: https://pytorch.org/
 Recommend use Anaconda Virtual Environment to manage your packages
 
 ```
-2. install openai-baselines
+2. install openai-baselines (**the openai-baselines update so quickly, please use the older version as blow, will solve in the future.**)
 ```bash
 # clone the openai baselines
 git clone https://github.com/openai/baselines.git
 cd baselines
+git checkout 366f486
 pip install -e .
 
 ```
