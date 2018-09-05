@@ -5,11 +5,12 @@ This is the pytorch version of the [A2C](https://arxiv.org/pdf/1602.01783.pdf) -
 - openai baselines
 - pytorch-0.4.0
 ## Installation
-Install OpenAI Baselines
+Install OpenAI Baselines (**the openai-baselines update so quickly, please use the older version as blow, will solve in the future.**)
 ```bash
 # clone the openai baselines
 git clone https://github.com/openai/baselines.git
 cd baselines
+git checkout 366f486
 pip install -e .
 
 ```
