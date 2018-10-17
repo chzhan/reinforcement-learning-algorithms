@@ -2,19 +2,23 @@
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)    
 ![demo](figures/demo.gif)   
 This repository will implement the classic deep reinforcement learning algorithms. The aim of this repository is to provide clear code for people to learn the deep reinforcement learning algorithm. In the future, more algorithms will be added and the existing codes will also be maintained. 
-- [x] [Deep Q-Learning Network(DQN)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/01-deep-q-network)
-- [x] [Double DQN(DDQN)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/02-double-dqn)
-- [x] [Deep Deterministic Policy Gradient(DDPG)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/03-deep-deterministic-policy-gradient)
-- [ ] Dueling Network Architecture
-- [x] [Advantage Actor-Critic(A2C)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/05-advantage-actor-critic)
-- [x] [Trust Region Policy Optimization(TRPO)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/06-trust-region-policy-optimization)
-- [x] [Proximal Policy Optimization(PPO)](https://github.com/TianhongDai/reinforcement-learning-algorithms/tree/master/07-proximal-policy-optimization)
+- [x] [Deep Q-Learning Network(DQN)](01-deep-q-network/)
+- [x] [Double DQN(DDQN)](02-double-dqn/)
+- [x] [Dueling Network Architecture](03-dueling-network/)
+- [x] [Deep Deterministic Policy Gradient(DDPG)](04-deep-deterministic-policy-gradient/)
+- [x] [Advantage Actor-Critic(A2C)](05-advantage-actor-critic/)
+- [x] [Trust Region Policy Optimization(TRPO)](06-trust-region-policy-optimization/)
+- [x] [Proximal Policy Optimization(PPO)](07-proximal-policy-optimization/)
 - [ ] Actor Critic using Kronecker-Factored Trust Region(ACKTR)
-
+## Update Information
+**2018-10-17** - In this update, most of algorithms have been imporved and add more experiments with plots (except for DPPG). The **PPO** now supports **atari-games** and **mujoco-env**. The **TRPO** is much stable and can have better results!
+## TODO List
+- [ ] add prioritized experience replay.
+- [ ] in the future, we will not use openai baseline's pre-processing functions.
+- [ ] improve the **DDPG**.
 ## Requirements
 - python-3.5.2
 - openai-gym
-- [gym_ple](https://github.com/lusob/gym-ple)
 - mujoco-py-1.50.1.56
 - pytorch-0.4.0
 - [openai-baselines](https://github.com/openai/baselines)

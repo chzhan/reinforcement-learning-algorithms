@@ -1,5 +1,4 @@
 from collections import deque
-
 import numpy as np
 
 # this is from the https://github.com/ikostrikov/pytorch-trpo/blob/master/running_state.py

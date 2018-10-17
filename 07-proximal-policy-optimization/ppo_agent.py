@@ -1,25 +1,20 @@
 import numpy as np
 import torch
 from torch import optim
-from models import Network
 from running_state import ZFilter
-from utils import select_actions, state_to_tensor, calculate_returns, sample_generator, get_log_probs
+from utils import select_actions, evaluate_actions
 from datetime import datetime
 import os
+import copy
 
 class ppo_agent:
-    def __init__(self, env, args):
-        self.env = env 
+    def __init__(self, envs, args, net, env_type='atari'):
+        self.envs = envs 
         self.args = args
-        # set the seeds..
-        self.env.seed(self.args.seed)
-        torch.manual_seed(self.args.seed)
-        # get the num of actions
-        num_states = self.env.observation_space.shape[0]
-        num_actions = self.env.action_space.shape[0]
+        self.env_type = env_type
         # define the newtork...
-        self.net = Network(num_states, num_actions, self.args.dist)
-        self.old_net = Network(num_states, num_actions, self.args.dist)
+        self.net = net
+        self.old_net = copy.deepcopy(self.net)
         # if use the cuda...
         if self.args.cuda:
             self.net.cuda()
@@ -27,7 +22,9 @@ class ppo_agent:
         # define the optimizer...
         self.optimizer = optim.Adam(self.net.parameters(), self.args.lr, eps=self.args.eps)
         # running filter...
-        self.running_state = ZFilter((num_states,), clip=5)
+        if self.env_type == 'mujoco':
+            num_states = self.envs.observation_space.shape[0]
+            self.running_state = ZFilter((num_states, ), clip=5)
         # check saving folder..
         if not os.path.exists(self.args.save_dir):
             os.mkdir(self.args.save_dir)
@@ -35,113 +32,182 @@ class ppo_agent:
         self.model_path = os.path.join(self.args.save_dir, self.args.env_name)
         if not os.path.exists(self.model_path):
             os.mkdir(self.model_path)
+        # get the observation
+        self.batch_ob_shape = (self.args.num_workers * self.args.nsteps, ) + self.envs.observation_space.shape
+        self.obs = np.zeros((self.args.num_workers, ) + self.envs.observation_space.shape, dtype=self.envs.observation_space.dtype.name)
+        if self.env_type == 'mujoco':
+            self.obs[:] = np.expand_dims(self.running_state(self.envs.reset()), 0)
+        else:
+            self.obs[:] = self.envs.reset()
+        self.dones = [False for _ in range(self.args.num_workers)]
 
     # start to train the network...
-    def train_network(self):
-        num_updates = self.args.total_frames // self.args.num_steps
-        state = state_to_tensor(self.running_state(self.env.reset()), self.args.cuda)
-        final_reward = 0
-        for i in range(num_updates):
-            brain_memory, total_reward = [], 0
-            for steps in range(self.args.num_steps):
+    def learn(self):
+        num_updates = self.args.total_frames // (self.args.nsteps * self.args.num_workers)
+        # get the reward to calculate other informations
+        episode_rewards = torch.zeros([self.args.num_workers, 1])
+        final_rewards = torch.zeros([self.args.num_workers, 1])
+        for update in range(num_updates):
+            mb_obs, mb_rewards, mb_actions, mb_dones, mb_values = [], [], [], [], []
+            if self.args.lr_decay:
+                self._adjust_learning_rate(update, num_updates)
+            for step in range(self.args.nsteps):
                 with torch.no_grad():
-                    _, pi = self.net(state)
+                    # get tensors
+                    obs_tensor = self._get_tensors(self.obs)
+                    values, pis = self.net(obs_tensor)
                 # select actions
-                actions = select_actions(pi, self.args.dist)
-                if self.args.dist == 'gauss':
-                    input_actions = actions
-                elif self.args.dist == 'beta':
-                    input_actions = -1 + 2 * actions
-                # take actions...
-                state_, reward, done, _ = self.env.step(input_actions)
-                mask = 0 if done else 1
-                brain_memory.append([state, reward, actions, mask])
-                # get rewards...
-                total_reward += reward
-                final_reward *= mask
-                final_reward += (1 - mask) * total_reward
-                total_reward *= mask
-                state = state_to_tensor(self.running_state(self.env.reset() if done else state_), self.args.cuda)
-            # get the next state_value...
-            next_value, _ = self.net(state)
-            brain_memory = calculate_returns(self.net, brain_memory, self.args.tau, self.args.gamma, next_value)
-            print('[{}] Update: {} / {}, Frames: {}, Reward: {}'.format(datetime.now(), i, num_updates, \
-                                                                            (i+1)*self.args.num_steps, final_reward))
-            torch.save([self.net.state_dict(), self.running_state], self.model_path + '/model.pt')
-            # load the old model...
+                actions = select_actions(pis, self.args.dist, self.env_type)
+                if self.env_type == 'atari':
+                    input_actions = actions 
+                else:
+                    if self.args.dist == 'gauss':
+                        input_actions = actions.copy()
+                    elif self.args.dist == 'beta':
+                        input_actions = -1 + 2 * actions
+                # start to store information
+                mb_obs.append(np.copy(self.obs))
+                mb_actions.append(actions)
+                mb_dones.append(self.dones)
+                mb_values.append(values.detach().cpu().numpy().squeeze())
+                # start to excute the actions in the environment
+                obs, rewards, dones, _ = self.envs.step(input_actions)
+                # update dones
+                if self.env_type == 'mujoco':
+                    dones = np.array([dones])
+                    rewards = np.array([rewards])
+                self.dones = dones
+                mb_rewards.append(rewards)
+                # clear the observation
+                for n, done in enumerate(dones):
+                    if done:
+                        self.obs[n] = self.obs[n] * 0
+                        if self.env_type == 'mujoco':
+                            # reset the environment
+                            obs = self.envs.reset()
+                self.obs = obs if self.env_type == 'atari' else np.expand_dims(self.running_state(obs), 0)
+                # process the rewards part -- display the rewards on the screen
+                rewards = torch.tensor(np.expand_dims(np.stack(rewards), 1), dtype=torch.float32)
+                episode_rewards += rewards
+                masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in dones], dtype=torch.float32)
+                final_rewards *= masks
+                final_rewards += (1 - masks) * episode_rewards
+                episode_rewards *= masks
+            # process the rollouts
+            mb_obs = np.asarray(mb_obs, dtype=np.float32)
+            mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
+            mb_actions = np.asarray(mb_actions, dtype=np.float32)
+            mb_dones = np.asarray(mb_dones, dtype=np.bool)
+            mb_values = np.asarray(mb_values, dtype=np.float32)
+            if self.env_type == 'mujoco':
+                mb_values = np.expand_dims(mb_values, 1)
+            # compute the last state value
+            with torch.no_grad():
+                obs_tensor = self._get_tensors(self.obs)
+                last_values, _ = self.net(obs_tensor)
+                last_values = last_values.detach().cpu().numpy().squeeze()
+            # start to compute advantages...
+            mb_returns = np.zeros_like(mb_rewards)
+            mb_advs = np.zeros_like(mb_rewards)
+            lastgaelam = 0
+            for t in reversed(range(self.args.nsteps)):
+                if t == self.args.nsteps - 1:
+                    nextnonterminal = 1.0 - self.dones
+                    nextvalues = last_values
+                else:
+                    nextnonterminal = 1.0 - mb_dones[t + 1]
+                    nextvalues = mb_values[t + 1]
+                delta = mb_rewards[t] + self.args.gamma * nextvalues * nextnonterminal - mb_values[t]
+                mb_advs[t] = lastgaelam = delta + self.args.gamma * self.args.tau * nextnonterminal * lastgaelam
+            mb_returns = mb_advs + mb_values
+            # after compute the returns, let's process the rollouts
+            mb_obs = mb_obs.swapaxes(0, 1).reshape(self.batch_ob_shape)
+            if self.env_type == 'atari':
+                mb_actions = mb_actions.swapaxes(0, 1).flatten()
+            mb_returns = mb_returns.swapaxes(0, 1).flatten()
+            mb_advs = mb_advs.swapaxes(0, 1).flatten()
+            # before update the network, the old network will try to load the weights
             self.old_net.load_state_dict(self.net.state_dict())
-            self._update_network(brain_memory)
+            # start to update the network
+            pl, vl, ent = self._update_network(mb_obs, mb_actions, mb_returns, mb_advs)
+            # display the training information
+            if update % self.args.display_interval == 0:
+                print('[{}] Update: {} / {}, Frames: {}, Rewards: {:.3f}, Min: {:.3f}, Max: {:.3f}, PL: {:.3f},'\
+                    'VL: {:.3f}, Ent: {:.3f}'.format(datetime.now(), update, num_updates, (update + 1)*self.args.nsteps*self.args.num_workers, \
+                    final_rewards.mean().item(), final_rewards.min().item(), final_rewards.max().item(), pl, vl, ent))
+                # save the model
+                if self.env_type == 'atari':
+                    torch.save(self.net.state_dict(), self.model_path + '/model.pt')
+                else:
+                    # for the mujoco, we also need to keep the running mean filter!
+                    torch.save([self.net.state_dict(), self.running_state], self.model_path + '/model.pt')
 
-    # update the entire network...
-    def _update_network(self, data):
+    # update the network
+    def _update_network(self, obs, actions, returns, advantages):
+        inds = np.arange(obs.shape[0])
+        nbatch_train = obs.shape[0] // self.args.batch_size
         for _ in range(self.args.epoch):
-            collections = sample_generator(data, self.args.batch_size)
-            for mini_batch in collections:
-                state = torch.cat([element[0] for element in mini_batch], 0)
-                returns = torch.tensor([element[1] for element in mini_batch], dtype=torch.float32).unsqueeze(1)
-                actions = torch.tensor([element[2] for element in mini_batch], dtype=torch.float32)
-                # decide if use cuda...
+            np.random.shuffle(inds)
+            for start in range(0, obs.shape[0], nbatch_train):
+                # get the mini-batchs
+                end = start + nbatch_train
+                mbinds = inds[start:end]
+                mb_obs = obs[mbinds]
+                mb_actions = actions[mbinds]
+                mb_returns = returns[mbinds]
+                mb_advs = advantages[mbinds]
+                # convert minibatches to tensor
+                mb_obs = self._get_tensors(mb_obs)
+                mb_actions = torch.tensor(mb_actions, dtype=torch.float32)
+                mb_returns = torch.tensor(mb_returns, dtype=torch.float32).unsqueeze(1)
+                mb_advs = torch.tensor(mb_advs, dtype=torch.float32).unsqueeze(1)
+                # normalize adv
+                mb_advs = (mb_advs - mb_advs.mean()) / (mb_advs.std() + 1e-8)
                 if self.args.cuda:
-                    returns = returns.cuda()
-                    actions = actions.cuda()
-                # get the old state value and policy
+                    mb_actions = mb_actions.cuda()
+                    mb_returns = mb_returns.cuda()
+                    mb_advs = mb_advs.cuda()
+                # start to get values
+                mb_values, pis = self.net(mb_obs)
+                # start to calculate the value loss...
+                value_loss = (mb_returns - mb_values).pow(2).mean()
+                # start to calculate the policy loss
                 with torch.no_grad():
-                    value_old, pi_old = self.old_net(state)
-                # advantages...
-                advantages = (returns - value_old).detach()
-                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
-                # get the current state value and policy
-                value, pi = self.net(state)
-                # get the log_prob
-                old_log_prob = get_log_probs(pi_old, actions, self.args.dist).detach()
-                log_prob = get_log_probs(pi, actions, self.args.dist)
+                    _, old_pis = self.old_net(mb_obs)
+                    # get the old log probs
+                    old_log_prob, _ = evaluate_actions(old_pis, mb_actions, self.args.dist, self.env_type)
+                    old_log_prob = old_log_prob.detach()
+                # evaluate the current policy
+                log_prob, ent_loss = evaluate_actions(pis, mb_actions, self.args.dist, self.env_type)
                 prob_ratio = torch.exp(log_prob - old_log_prob)
-                # surr-1
-                surr1 = prob_ratio * advantages
-                surr2 = torch.clamp(prob_ratio, 1 - self.args.clip, 1 + self.args.clip) * advantages
+                # surr1
+                surr1 = prob_ratio * mb_advs
+                surr2 = torch.clamp(prob_ratio, 1 - self.args.clip, 1 + self.args.clip) * mb_advs
                 policy_loss = -torch.min(surr1, surr2).mean()
-                # get the value loss...
-                value_loss = (returns - value).pow(2).mean()
-                total_loss = policy_loss + self.args.value_loss_coef * value_loss
+                # final total loss
+                total_loss = policy_loss + self.args.vloss_coef * value_loss - ent_loss * self.args.ent_coef
+                # clear the grad buffer
                 self.optimizer.zero_grad()
                 total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.net.parameters(), self.args.max_grad_norm)
+                # update
                 self.optimizer.step()
+        return policy_loss.item(), value_loss.item(), ent_loss.item()
 
-    # this part is to test the network
-    def test_network(self):
-        # load the model
-        net_model, filter_model = torch.load(self.model_path+'/model.pt', map_location=lambda storage, loc: storage)
-        self.net.load_state_dict(net_model)
-        self.net.eval()
-        # start to do the test
-        for _ in range(1):
-            state = self.env.reset()
-            state = self._test_filter(state, filter_model.rs.mean, filter_model.rs.std)
-            reward_sum = 0
-            for _ in range(10000):
-                self.env.render()
-                state = state_to_tensor(state, self.args.cuda)
-                with torch.no_grad():
-                    _, pi = self.net(state)
-                if self.args.dist == 'gauss':
-                    mean, _ = pi
-                    action = mean.detach().cpu().numpy().squeeze()
-                elif self.args.dist == 'beta':
-                    alpha, beta = pi
-                    # calculate the mode
-                    mode = (alpha - 1) / (alpha + beta - 2)
-                    action = mode.detach().cpu().numpy().squeeze()
-                state_, reward, done, _ = self.env.step(action)
-                state_ = self._test_filter(state_, filter_model.rs.mean, filter_model.rs.std)
-                reward_sum += reward
-                if done:
-                    break
-                state = state_
-            print('The reward of this episode is {}'.format(reward_sum))
+    # convert the numpy array to tensors
+    def _get_tensors(self, obs):
+        if self.env_type == 'atari':
+            obs_tensor = torch.tensor(np.transpose(obs, (0, 3, 1, 2)), dtype=torch.float32)
+        else:
+            obs_tensor = torch.tensor(obs, dtype=torch.float32)
+        # decide if put the tensor on the GPU
+        if self.args.cuda:
+            obs_tensor = obs_tensor.cuda()
+        return obs_tensor
 
-    def _test_filter(self, x, mean, std, clip=10):
-        x = x - mean
-        x = x / (std + 1e-8)
-        x = np.clip(x, -clip, clip)
-
-        return x
+    # adjust the learning rate
+    def _adjust_learning_rate(self, update, num_updates):
+        lr_frac = 1 - (update / num_updates)
+        adjust_lr = self.args.lr * lr_frac
+        for param_group in self.optimizer.param_groups:
+             param_group['lr'] = adjust_lr

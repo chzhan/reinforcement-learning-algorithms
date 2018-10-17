@@ -6,17 +6,37 @@ This is a pytorch-version implementation of [Proximal Policy Optimisation(PPO)](
 - openai-gym
 - mujoco-1.50.1.56
 - pytorch-0.4.0
+## Installation
+Install OpenAI Baselines (**the openai-baselines update so quickly, please use the older version as blow, will solve in the future.**)
+```bash
+# clone the openai baselines
+git clone https://github.com/openai/baselines.git
+cd baselines
+git checkout 366f486
+pip install -e .
+
+```
 
 ## Instruction to run the code
 the `--dist` contains `gauss` and `beta`. 
-### Train the Network:
+### Train the Network with Atari games:
 ```bash
-python train_network.py --cuda --dist=<the type of distribution> (if you have a GPU, you can add this flag)
+python train_atari.py --cuda (if you have a GPU, you can add this flag)
 
 ```
-### Test the Network
+### Test the Network with Atari games
 ```bash
-python demo.py --dist=<the type of distribution>
+python demo_atari.py
+
+```
+### Train the Network with Mujoco:
+```bash
+python train_mujoco.py --num-workers=1 --nsteps=2048 --clip=0.2 --batch-size=32 --epoch=10 --lr=3e-4 --ent-coef=0 --total-frames=1000000 --vloss-coef=1 --cuda (if you have gpu)
+
+```
+### Test the Network with Mujoco
+```bash
+python demo_mujoco.py
 
 ```
 ### Download the Pre-trained Model

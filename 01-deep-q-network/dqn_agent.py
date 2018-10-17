@@ -1,183 +1,118 @@
-import numpy as np 
-import models
+import numpy as np
+from models import Net
+from utils import replay_memory, linear_schedule, select_actions
 import torch
-import cv2
-import random
-import gym_ple
 from datetime import datetime
 import os
-from utils import pre_processing, reward_wrapper, select_action
 
-"""
-This is the implementation of DQN
-
-2017-01-17
-
-author: Tianhong Dai
-
-"""
-
+# define the dqn agent
 class dqn_agent:
-    def __init__(self, args, env):
-        # get the arguments...
-        self.args = args
-        # init the parameters....
-        self.env = env    
-        # check if use the cuda to train the network...
-        self.use_cuda = torch.cuda.is_available() and self.args.cuda 
-        print('The cuda is avaiable: ' + str(torch.cuda.is_available()))
-        print('If use the cuda: ' + str(self.args.cuda))
-        # get the number of actions....
-        # action space fot the FlappyBird....
-        self.action_space = [0, 1]
-        self.num_actions = len(self.action_space)
-        # build up the network.... and the target network
-        self.deep_q_network = models.Deep_Q_Network(self.num_actions)
-        self.target_network = models.Deep_Q_Network(self.num_actions)
-        # decide if put into the cuda...
-        if self.use_cuda:
-            self.deep_q_network.cuda()
-            self.target_network.cuda()
-        # init the parameters of the target network...
-        self.target_network.load_state_dict(self.deep_q_network.state_dict())
-        # init the optimizer
-        self.optimizer = torch.optim.Adam(self.deep_q_network.parameters(), lr=self.args.lr)
+    def __init__(self, env, args):
+        # define some important 
+        self.env = env
+        self.args = args 
+        # trying to define the network
+        self.net = Net(self.env.action_space.n)
+        self.target_net = Net(self.env.action_space.n)
+        # make sure the target net has the same weights as the network
+        self.target_net.load_state_dict(self.net.state_dict())
+        if self.args.cuda:
+            self.net.cuda()
+            self.target_net.cuda()
+        # define the optimizer
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.args.lr)
+        # define the replay memory
+        self.buffer = replay_memory(self.args.buffer_size)
+        # define the linear schedule of the exploration
+        self.exploration_schedule = linear_schedule(int(self.args.total_timesteps * self.args.exploration_fraction), \
+                                                    self.args.final_ratio, self.args.init_ratio)
+        # create the folder to save the models
         if not os.path.exists(self.args.save_dir):
             os.mkdir(self.args.save_dir)
+        # set the environment folder
+        self.model_path = os.path.join(self.args.save_dir, self.args.env_name)
+        if not os.path.exists(self.model_path):
+            os.mkdir(self.model_path)
 
-    # this is used to train the network...
-    def train_network(self):
-        # init the memory buff...
-        brain_memory = []
-        num_of_episode = 0
-        global_step = 0
-        update_step_counter = 0
-        reward_mean = None
-        epsilon = self.args.init_exploration
-        loss = 0
-        while True:
-            state = self.env.reset()
-            state = pre_processing(state)
-            # for the first state we need to stack them together....
-            state = np.stack((state, state, state, state), axis=0)
-            # clear the rewrad_sum...
-            pipe_num = 0
-            # I haven't set a max step here, but you could set it...
-            while True:
-                state_tensor = torch.tensor(state).unsqueeze(0)
-                if self.use_cuda:
-                    state_tensor = state_tensor.cuda()
-                with torch.no_grad():
-                    _, _, actions = self.deep_q_network(state_tensor)
-                action_selected = select_action(actions, epsilon, self.num_actions)
-                # input the action into the environment...
-                state_, reward, done, _ = self.env.step(self.action_space[action_selected])
-                # process the output state...
-                state_ = pre_processing(state_)
-                # concatenate them together...
-                state_temp = state[0:3, :, :].copy()
-                state_ = np.expand_dims(state_, 0)
-                state_ = np.concatenate((state_, state_temp), axis=0)
-                # wrapper the reward....
-                reward = reward_wrapper(reward)
-                # add the pip num...
-                if reward > 0:
-                    pipe_num += 1
-                global_step += 1
-                # store the transition...
-                brain_memory.append((state, state_, reward, done, action_selected))
-                if len(brain_memory) > self.args.buffer_size:
-                    brain_memory.pop(0)
-                if global_step >= self.args.observate_time:
-                    mini_batch = random.sample(brain_memory, self.args.batch_size)
-                    loss = self._update_network(mini_batch)
-                    update_step_counter += 1
-                    # up date the target network...
-                    if update_step_counter % self.args.hard_update_step == 0:
-                        #self._hard_update_target_network(self.deep_q_network, self.target_network)
-                        self.target_network.load_state_dict(self.deep_q_network.state_dict())
-                # process the epsilon
-                if global_step <= self.args.exploration_steps:
-                    epsilon -= (self.args.init_exploration - self.args.final_exploration) / self.args.exploration_steps
-                if done:
-                    break 
-                state = state_
-            # expoential weighted average...
-            reward_mean = pipe_num if reward_mean is None else reward_mean * 0.99 + pipe_num * 0.01
-            if num_of_episode % self.args.display_interval == 0:
-                print('[{}] Episode: {}, Reward: {}, Loss: {}'.format(str(datetime.now()), num_of_episode, reward_mean, loss))
+    # start to do the training
+    def learn(self):
+        episode_reward = [0.0]
+        obs = np.array(self.env.reset())
+        td_loss = 0
+        for timestep in range(self.args.total_timesteps):
+            explore_eps = self.exploration_schedule.get_value(timestep)
+            with torch.no_grad():
+                obs_tensor = self._get_tensors(obs)
+                action_value = self.net(obs_tensor)
+            # select actions
+            action = select_actions(action_value, explore_eps)
+            # excute actions
+            obs_, reward, done, _ = self.env.step(action)
+            obs_ = np.array(obs_)
+            # tryint to append the samples
+            self.buffer.add(obs, action, reward, obs_, float(done))
+            obs = obs_
+            # add the rewards
+            episode_reward[-1] += reward 
+            if done:
+                obs = np.array(self.env.reset())
+                episode_reward.append(0.0)
+            if timestep > self.args.learning_starts and timestep % self.args.train_freq == 0:
+                # start to sample the samples from the replay buffer
+                batch_samples = self.buffer.sample(self.args.batch_size)
+                td_loss = self._update_network(batch_samples)
+            if timestep > self.args.learning_starts and timestep % self.args.target_network_update_freq == 0:
+                # update the target network
+                self.target_net.load_state_dict(self.net.state_dict())
+            if len(episode_reward[-101:-1]) == 0:
+                mean_reward_per_100 = 0
+            else:
+                mean_reward_per_100 = np.mean(episode_reward[-101:-1])
+            num_episode = len(episode_reward) - 1
+            if done and num_episode % self.args.display_interval == 0:
+                print('[{}] Frames: {}, Episode: {}, Mean: {:.3f}, Loss: {:.3f}'.format(datetime.now(), timestep, num_episode, \
+                    mean_reward_per_100, td_loss))
+                torch.save(self.net.state_dict(), self.model_path + '/model.pt')
 
-            if num_of_episode % self.args.save_interval == 0:
-                save_path = self.args.save_dir + 'model.pt'
-                torch.save(self.deep_q_network.state_dict(), save_path)
-            num_of_episode += 1
-
-    # this is used to update the q_learning_network...
-    def _update_network(self, mini_batch):
-        # process the data...
-        state_batch_tensor = torch.tensor(np.array([element[0] for element in mini_batch]))
-        state_next_batch_tensor = torch.tensor(np.array([element[1] for element in mini_batch]))
-        reward_batch_tensor = torch.tensor(np.array([element[2] for element in mini_batch]), dtype=torch.float32).unsqueeze(1)
-        done_batch = 1 - np.array([float(element[3]) for element in mini_batch])
-        done_batch_tensor = torch.tensor(done_batch, dtype=torch.float32).unsqueeze(1)
-        action_batch_tensor = torch.tensor(np.array([element[4] for element in mini_batch]), dtype=torch.int64).unsqueeze(1)
-        # put the tensor into the gpu...
-        if self.use_cuda:
-            state_batch_tensor = state_batch_tensor.cuda()
-            state_next_batch_tensor = state_next_batch_tensor.cuda()
-            reward_batch_tensor = reward_batch_tensor.cuda()
-            done_batch_tensor = done_batch_tensor.cuda()
-            action_batch_tensor = action_batch_tensor.cuda()
-        # calculate the target value....
+    # update the network
+    def _update_network(self, samples):
+        obses, actions, rewards, obses_next, dones = samples
+        # convert the data to tensor
+        obses = self._get_tensors(obses)
+        actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(-1)
+        rewards = torch.tensor(rewards, dtype=torch.float32).unsqueeze(-1)
+        obses_next = self._get_tensors(obses_next)
+        dones = torch.tensor(1 - dones, dtype=torch.float32).unsqueeze(-1)
+        # convert into gpu
+        if self.args.cuda:
+            actions = actions.cuda()
+            rewards = rewards.cuda()
+            dones = dones.cuda()
+        # calculate the target value
         with torch.no_grad():
-            _, q_max_value, _ = self.target_network(state_next_batch_tensor)
-        q_max_value = q_max_value.unsqueeze(1)
-        target = reward_batch_tensor + self.args.gamma * q_max_value * done_batch_tensor
-        # remove the target from the computation graph...
-        target = target.detach()
-        # calculate the loss
-        Q_value, _, _ = self.deep_q_network(state_batch_tensor)
-        real_Q_value = Q_value.gather(1, action_batch_tensor)
-        loss = (target - real_Q_value).pow(2).mean()
-        # optimize
+            target_action_value = self.target_net(obses_next)
+            target_action_max_value, _ = torch.max(target_action_value, dim=1, keepdim=True)
+            target_action_max_value = target_action_max_value.detach()
+        # target
+        expected_value = rewards + self.args.gamma * target_action_max_value * dones
+        # get the real q value
+        action_value = self.net(obses)
+        real_value = action_value.gather(1, actions)
+        loss = (expected_value - real_value).pow(2).mean()
+        # start to update
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
         return loss.item()
 
-# -------------------------- Here is to test the network.... ------------------------------#
-
-    def test_network(self):
-        model_path = self.args.save_dir + 'model.pt'
-        self.deep_q_network.load_state_dict(torch.load(model_path, map_location=lambda storage, loc: storage))
-        self.deep_q_network.eval()
-        while True: 
-            state = self.env.reset()
-            state = pre_processing(state)
-            # for the first state we need to stack them together....
-            state = np.stack((state, state, state, state), axis=0)
-            # clear the rewrad_sum...
-            pipe_sum = 0
-            # I haven't set a max step here, but you could set it...
-            while True:
-                self.env.render()
-                state_tensor = torch.tensor(state).unsqueeze(0)
-                with torch.no_grad():
-                    _, _, actions = self.deep_q_network(state_tensor)
-                # action...deterministic...
-                action_selected = int(actions.data.numpy()[0])
-                state_, reward, done, _ = self.env.step(self.action_space[action_selected])
-                if reward > 0:
-                    pipe_sum += 1
-                # process the output state...
-                state_ = pre_processing(state_)
-                # concatenate them together...
-                state_temp = state[0:3, :, :].copy()
-                state_ = np.expand_dims(state_, 0)
-                state_ = np.concatenate((state_, state_temp), axis=0)
-                if done:
-                    break 
-                state = state_
-            print('In this episode, the bird totally pass ' + str(pipe_sum) + ' pipes!')
-
+    # get tensors
+    def _get_tensors(self, obs):
+        if obs.ndim == 3:
+            obs = np.transpose(obs, (2, 0, 1))
+            obs = np.expand_dims(obs, 0)
+        elif obs.ndim == 4:
+            obs = np.transpose(obs, (0, 3, 1, 2))
+        obs = torch.tensor(obs, dtype=torch.float32)
+        if self.args.cuda:
+            obs = obs.cuda()
+        return obs

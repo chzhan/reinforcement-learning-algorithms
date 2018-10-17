@@ -1,11 +1,12 @@
-# Deep Q-Learning Network(DQN)
-This is a pytorch implementation of ["Human-level control through deep reinforcement learning"](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf). In this latest version, I use the Atari games. But in the future, I will bring the Flappy Bird back!
+# Dueling Network Architectures (Dueling-DQN)
+This is a pytorch implementation of ["Dueling Network Architectures for Deep Reinforcement Learning"](https://arxiv.org/abs/1511.06581). In this lastest version, I use the Atari games. But in the future, I will bring the Flappy Bird back!
 
 ## Requirements
 - python-3.5.2
 - openai-gym
 - pytorch-0.4.0
 - opencv-python
+
 ## Installation
 Install OpenAI Baselines (**the openai-baselines update so quickly, please use the older version as blow, will solve in the future.**)
 ```bash
@@ -22,7 +23,6 @@ pip install -e .
 python train_network.py --cuda (if you have a GPU, you can use this flag)
 
 ```
-
 ### Test the Network:
 ```bash
 python demo.py

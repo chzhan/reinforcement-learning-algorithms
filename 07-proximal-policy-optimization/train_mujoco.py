@@ -1,9 +1,9 @@
-import gym
 from arguments import get_args
-import os
-from baselines import logger
+from ppo_agent import ppo_agent
+from models import MLP_Net
 from baselines.common.cmd_util import make_mujoco_env
-from trpo_agent import trpo_agent
+from baselines import logger
+import os
 
 if __name__ == '__main__':
     args = get_args()
@@ -12,8 +12,10 @@ if __name__ == '__main__':
     log_path = 'logs/' + args.env_name + '/'
     if not os.path.exists(log_path):
         os.mkdir(log_path)
+    # write log information
     logger.configure(log_path)
-    # make environemnts
     env = make_mujoco_env(args.env_name, args.seed)
-    trpo_trainer = trpo_agent(env, args)
-    trpo_trainer.learn()
+    #env = gym.make(args.env_name)
+    network = MLP_Net(env.observation_space.shape[0], env.action_space.shape[0], args.dist)
+    ppo_trainer = ppo_agent(env, args, network, 'mujoco')
+    ppo_trainer.learn()

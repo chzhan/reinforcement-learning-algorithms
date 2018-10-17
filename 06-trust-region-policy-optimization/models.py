@@ -1,53 +1,46 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
+from torch.nn import functional as F
 
-"""
-Will use the Normal Distribution In this Case,
-
-Because It's hard to calculate the KL-Divergence of the Beta Distribution
-
-Date: 2018-04-04
-
-"""
-
-class Policy(nn.Module):
-    def __init__(self, num_input, num_action):
-        super(Policy, self).__init__()
-        self.affine1 = nn.Linear(num_input, 400)
-        self.affine2 = nn.Linear(400, 300)
-        # get the alpha and beta from the beta distribution
-        self.action_mean = nn.Linear(300, num_action)
-        self.action_mean.weight.data.mul_(0.1)
-        self.action_mean.bias.data.mul_(0.0)
-
-        self.action_log_std = nn.Parameter(torch.zeros(1, num_action))
+class Network(nn.Module):
+    def __init__(self, num_states, num_actions):
+        super(Network, self).__init__()
+        # define the critic
+        self.critic = Critic(num_states)
+        self.actor = Actor(num_states, num_actions)
 
     def forward(self, x):
-        x = F.relu(self.affine1(x))
-        x = F.relu(self.affine2(x))
-        
-        # get the mean of the normal distribution
-        action_mean = self.action_mean(x)
-        # get the std of the normal distribution
-        action_log_std = self.action_log_std.expand_as(action_mean)
-        action_std = torch.exp(action_log_std)
-        
-        return action_mean, action_std
+        state_value = self.critic(x)
+        pi = self.actor(x)
+        return state_value, pi
 
-# define the value network...
-class Value(nn.Module):
-    def __init__(self, num_inputs):
-        super(Value, self).__init__()
-        self.affine1 = nn.Linear(num_inputs, 400)
-        self.affine2 = nn.Linear(400, 300)
-        self.value_head = nn.Linear(300, 1)
-        self.value_head.weight.data.mul_(0.1)
-        self.value_head.bias.data.mul_(0.0)
+class Critic(nn.Module):
+    def __init__(self, num_states):
+        super(Critic, self).__init__()
+        self.fc1 = nn.Linear(num_states, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.value = nn.Linear(64, 1)
 
     def forward(self, x):
-        x = F.relu(self.affine1(x))
-        x = F.relu(self.affine2(x))
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
+        value = self.value(x)
+        return value
 
-        state_values = self.value_head(x)
-        return state_values
+class Actor(nn.Module):
+    def __init__(self, num_states, num_actions):
+        super(Actor, self).__init__()
+        self.fc1 = nn.Linear(num_states, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.action_mean = nn.Linear(64, num_actions)
+        self.sigma_log = nn.Parameter(torch.zeros(1, num_actions))
+
+    def forward(self, x):
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
+        mean = self.action_mean(x)
+        sigma_log = self.sigma_log.expand_as(mean)
+        sigma = torch.exp(sigma_log)
+        pi = (mean, sigma)
+        
+        return pi

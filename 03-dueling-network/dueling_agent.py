@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 # define the dqn agent
-class ddqn_agent:
+class dueling_agent:
     def __init__(self, env, args):
         # define some important 
         self.env = env

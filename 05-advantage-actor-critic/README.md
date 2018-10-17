@@ -29,6 +29,7 @@ python demo.py --env-name 'BreakoutNoFrameskip-v4'
 Please download them from the [Google Driver](https://drive.google.com/open?id=1ZXqRKwGI7purOm0CJtIVFXOZnmxqvA0p), then put the `saved_models` under the current folder.
 
 ## Results
+It can be found some learning curves was not perfect, because it's the problem of the implementation of `RMSProp` in pytorch. Please check this [blog](https://blog.millionintegrals.com/vel-pytorch-meets-baselines/)
 ### Training Performance
 ![Scheme](figures/result.png)
 ## Demo: BreakoutNoFrameskip-v4

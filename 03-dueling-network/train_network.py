@@ -3,7 +3,7 @@ from baselines.common.atari_wrappers import make_atari
 from baselines import bench
 from baselines import logger
 from baselines.common.atari_wrappers import wrap_deepmind
-from dqn_agent import dqn_agent
+from dueling_agent import dueling_agent
 import os 
 
 if __name__ == '__main__':
@@ -18,6 +18,6 @@ if __name__ == '__main__':
     env = make_atari(args.env_name)
     env = bench.Monitor(env, logger.get_dir())
     env = wrap_deepmind(env, frame_stack=True)
-    trainer = dqn_agent(env, args)
+    trainer = dueling_agent(env, args)
     trainer.learn()
     env.close()

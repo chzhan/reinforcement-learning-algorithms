@@ -7,6 +7,16 @@ This is a pytorch-version implementation of [Trust Region Policy Optimisation(TR
 - mujoco-1.50.1.56
 - pytorch-0.4.0
 
+## Installation
+Install OpenAI Baselines (**the openai-baselines update so quickly, please use the older version as blow, will solve in the future.**)
+```bash
+# clone the openai baselines
+git clone https://github.com/openai/baselines.git
+cd baselines
+git checkout 366f486
+pip install -e .
+
+```
 ## Instruction to run the code
 ### Train the Network:
 ```bash
