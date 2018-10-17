@@ -34,7 +34,7 @@ Please download them from the [Google Driver](https://drive.google.com/open?id=1
 ## Results
 ### Training Performance
 ![results](figures/result.png)
-### Demo: Flappy-Bird
+### Demo: PongNoFrameskip-v4
 ![demo](figures/demo.gif)
 
 
