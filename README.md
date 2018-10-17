@@ -11,7 +11,7 @@ This repository will implement the classic deep reinforcement learning algorithm
 - [x] [Proximal Policy Optimization(PPO)](07-proximal-policy-optimization/)
 - [ ] Actor Critic using Kronecker-Factored Trust Region(ACKTR)
 ## Update Information
-**2018-10-17** - In this update, most of algorithms have been imporved and add more experiments with plots (except for DPPG). The **PPO** now supports **atari-games** and **mujoco-env**. The **TRPO** is much stable and can have better results!
+**2018-10-17** - In this update, most of algorithms have been imporved and **add more experiments with plots** (except for DPPG). The **PPO** now supports **atari-games** and **mujoco-env**. The **TRPO** is much stable and can have better results!
 ## TODO List
 - [ ] add prioritized experience replay.
 - [ ] in the future, we will not use openai baseline's pre-processing functions.
