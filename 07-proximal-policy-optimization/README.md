@@ -47,6 +47,7 @@ Please download them from the [Google Driver](https://drive.google.com/open?id=1
 ![Training_Curve](figures/result.png)
 ### Demo: Walker2d-v1
 **Note:** the new-version openai-gym has problem in rendering, so I use the demo of `Walker2d-v1`
+**Tips**: when you watch the demo, you can press **TAB** to switch the camera in the mujoco.
 ![Demo](figures/demo.gif)
 
 
