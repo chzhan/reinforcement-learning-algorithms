@@ -1,4 +1,4 @@
-# Proximal Policy Optimization(PPO)
+# Proximal Policy Optimization (PPO)
 This is a pytorch-version implementation of [Proximal Policy Optimisation(PPO)](https://arxiv.org/abs/1707.06347). In this code, the actions can also be sampled from the beta distribution which could improve the performance. The paper about this is: [The Beta Policy for Continuous Control Reinforcement Learning](https://www.ri.cmu.edu/wp-content/uploads/2017/06/thesis-Chou.pdf)
 
 ## Requirements

@@ -4,7 +4,7 @@
 This repository will implement the classic deep reinforcement learning algorithms. The aim of this repository is to provide clear code for people to learn the deep reinforcement learning algorithm. In the future, more algorithms will be added and the existing codes will also be maintained. 
 - [x] [Deep Q-Learning Network(DQN)](01-deep-q-network/)
 - [x] [Double DQN(DDQN)](02-double-dqn/)
-- [x] [Dueling Network Architecture](03-dueling-network/)
+- [x] [Dueling Network Architecture(Dueling DQN)](03-dueling-network/)
 - [x] [Deep Deterministic Policy Gradient(DDPG)](04-deep-deterministic-policy-gradient/)
 - [x] [Advantage Actor-Critic(A2C)](05-advantage-actor-critic/)
 - [x] [Trust Region Policy Optimization(TRPO)](06-trust-region-policy-optimization/)

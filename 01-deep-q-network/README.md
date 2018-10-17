@@ -1,4 +1,4 @@
-# Deep Q-Learning Network(DQN)
+# Deep Q-Learning Network (DQN)
 This is a pytorch implementation of ["Human-level control through deep reinforcement learning"](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf). In this latest version, I use the Atari games. But in the future, I will bring the Flappy Bird back!
 
 ## Requirements

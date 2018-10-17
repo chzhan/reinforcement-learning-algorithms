@@ -1,4 +1,4 @@
-# Double Deep Q-Learning Network(Double-DQN)
+# Double Deep Q-Learning Network (Double-DQN)
 This is a pytorch implementation of ["Deep Reinforcement Learning with Double Q-learning"](https://arxiv.org/abs/1509.06461). In this lastest version, I use the Atari games. But in the future, I will bring the Flappy Bird back!
 
 ## Requirements

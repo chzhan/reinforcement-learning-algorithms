@@ -1,4 +1,4 @@
-# Trust Region Policy Optimization(TRPO)
+# Trust Region Policy Optimization (TRPO)
 This is a pytorch-version implementation of [Trust Region Policy Optimisation(TRPO)](https://arxiv.org/abs/1502.05477). 
 
 ## Requirements
