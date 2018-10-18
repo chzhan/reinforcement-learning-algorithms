@@ -21,7 +21,7 @@ pip install -e .
 the `--dist` contains `gauss` and `beta`. 
 ### Train the Network with Atari games:
 ```bash
-python train_atari.py --cuda (if you have a GPU, you can add this flag)
+python train_atari.py --lr-decay --cuda(if you have a GPU, you can add this flag)
 
 ```
 ### Test the Network with Atari games
