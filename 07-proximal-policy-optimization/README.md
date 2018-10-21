@@ -31,7 +31,7 @@ python demo_atari.py
 ```
 ### Train the Network with Mujoco:
 ```bash
-python train_mujoco.py --num-workers=1 --nsteps=2048 --clip=0.2 --batch-size=32 --epoch=10 --lr=3e-4 --ent-coef=0 --total-frames=1000000 --vloss-coef=1 --cuda (if you have gpu)
+python train_mujoco.py --env-name='Walker2d-v2' --num-workers=1 --nsteps=2048 --clip=0.2 --batch-size=32 --epoch=10 --lr=3e-4 --ent-coef=0 --total-frames=1000000 --vloss-coef=1 --cuda (if you have gpu)
 
 ```
 ### Test the Network with Mujoco
