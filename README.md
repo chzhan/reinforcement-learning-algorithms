@@ -58,6 +58,20 @@ python demo.py --env-name=<env-name>
 5. download the **pre-trained** models  
 Please download them from the [Google Driver](https://drive.google.com/open?id=1ZXqRKwGI7purOm0CJtIVFXOZnmxqvA0p), then put the `saved_models` under the corresponding algorithm's folder.
 
+## Performance of the algorithms
+### Deep Q Network (DQN)
+![dqn_performance](01-deep-q-network/figures/result.png)
+### Double DQN
+![ddqn_performance](02-double-dqn/figures/result.png)
+### Dueling Network
+![dueling_network](03-dueling-network/figures/result.png)
+### Advantage Actor Critic (A2C)
+![a2c](05-advantage-actor-critic/figures/result.png)
+### Trust Region Policy Optimization (TRPO)
+![trpo](06-trust-region-policy-optimization/figures/result.png)
+### Proximal Policy Optimization (PPO)
+![ppo](07-proximal-policy-optimization/figures/result.png)
+
 ## Acknowledgement:
 - [Ilya Kostrikov's GitHub](https://github.com/ikostrikov)
 - [Openai Baselines](https://github.com/openai/baselines)
