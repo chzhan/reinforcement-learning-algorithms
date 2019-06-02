@@ -15,7 +15,7 @@ This repository will implement the classic deep reinforcement learning algorithm
 ## TODO List
 - [ ] add prioritized experience replay.
 - [ ] in the future, we will not use openai baseline's pre-processing functions.
-- [ ] improve the **DDPG**.
+- [x] improve the **DDPG** - I have already implemented a pytorch Hindsight Experience Replay (HER) with DDPG, you chould check them [here](https://github.com/TianhongDai/hindsight-experience-replay).
 ## Requirements
 - python-3.5.2
 - openai-gym
